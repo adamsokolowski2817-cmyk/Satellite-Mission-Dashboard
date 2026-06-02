@@ -1,0 +1,17 @@
+# Build
+build/
+cmake-build-*/
+
+# IDE
+.idea/
+.vscode/
+
+# OpenMCT
+openmct-client/node_modules/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <title>Satellite Mission Dashboard</title>
+
+    <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+    <script
+            src="https://unpkg.com/leaflet/dist/leaflet.js">
+    </script>
+
+    <style>
+        body
+        {
+            margin: 0;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #map
+        {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #info
+        {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+
+            z-index: 1000;
+
+            background: rgba(0,0,0,0.8);
+
+            padding: 12px;
+
+            border-radius: 10px;
+        }
+
+        #legend
+        {
+            position: absolute;
+            bottom: 20px;
+            left: 10px;
+
+            z-index: 1000;
+
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 10px;
+
+            font-size: 14px;
+        }
+
+        .legend-line
+        {
+            display: inline-block;
+            width: 30px;
+            height: 4px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .red
+        {
+            background: red;
+        }
+
+        .blue
+        {
+            background: blue;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="info">
+    <h2>Satellite Telemetry</h2>
+
+    <div id="telemetry">
+        Loading...
+    </div>
+</div>
+
+<div id="map"></div>
+
+<div id="legend">
+    <div>
+        <span class="legend-line red"></span>
+        Predicted orbit
+    </div>
+    <div>
+        <span class="legend-line blue"></span>
+        Live trail
+    </div>
+</div>
+
+<script>
+
+    const map = L.map('map')
+        .setView([0, 0], 2);
+
+    L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+            attribution: 'OpenStreetMap'
+        }
+    ).addTo(map);
+
+    const satelliteMarker =
+        L.marker([0,0]).addTo(map);
+
+    const predictedOrbitPath =
+        L.polyline([], {
+            color: 'red'
+        }).addTo(map);
+
+    const liveTrailPath =
+        L.polyline([], {
+            color: 'blue'
+        }).addTo(map);
+
+    const orbitPoints = [];
+
+    async function loadOrbit()
+    {
+        const response =
+            await fetch(
+                'http://localhost:8090/telemetry/orbit');
+
+        const orbit =
+            await response.json();
+
+        const orbitSegments = [];
+        let currentSegment = [];
+
+        for (let i = 0; i < orbit.length; i++)
+        {
+            const point = orbit[i];
+
+            if (i > 0)
+            {
+                const previousLongitude =
+                    orbit[i - 1].longitude;
+
+                const longitudeDifference =
+                    Math.abs(point.longitude - previousLongitude);
+
+                if (longitudeDifference > 180)
+                {
+                    orbitSegments.push(currentSegment);
+                    currentSegment = [];
+                }
+            }
+
+            currentSegment.push([
+                point.latitude,
+                point.longitude
+            ]);
+        }
+
+        if (currentSegment.length > 0)
+        {
+            orbitSegments.push(currentSegment);
+        }
+
+        predictedOrbitPath.setLatLngs(orbitSegments);
+
+
+    }
+
+    async function updateTelemetry()
+    {
+        const response =
+            await fetch(
+                'http://localhost:8090/telemetry/current');
+
+        const data =
+            await response.json();
+
+        const lat = data.latitude;
+        const lon = data.longitude;
+
+        satelliteMarker.setLatLng([lat, lon]);
+
+        orbitPoints.push([lat, lon]);
+
+        if (orbitPoints.length > 100)
+        {
+            orbitPoints.shift();
+        }
+
+        liveTrailPath.setLatLngs(orbitPoints);
+
+        map.panTo([lat, lon]);
+
+        document.getElementById("telemetry").innerHTML =
+            `
+            <b>${data.satellite}</b><br>
+            Latitude: ${lat.toFixed(4)}<br>
+            Longitude: ${lon.toFixed(4)}<br>
+            Altitude: ${data.altitude_km.toFixed(2)} km<br>
+            Velocity: ${data.velocity_km_s.toFixed(2)} km/s<br>
+            Source: ${data.source}<br>
+            Time: ${new Date(data.timestamp * 1000).toLocaleTimeString()}
+            `;
+    }
+
+    loadOrbit();
+
+    updateTelemetry();
+
+    setInterval(updateTelemetry, 1000);
+
+</script>
+
+</body>
+</html>
