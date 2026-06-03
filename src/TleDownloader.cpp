@@ -7,35 +7,26 @@
 
 #include "httplib.h"
 
-
-void TleDownloader::downloadIssTle()
+void TleDownloader::downloadTleByNoradId(
+    int noradId,
+    const std::string& outputPath)
 {
-    httplib::SSLClient client(
-        "celestrak.org");
+    httplib::SSLClient client("celestrak.org");
 
-    auto response =
-        client.Get(
-            "/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE");
+    std::string path =
+        "/NORAD/elements/gp.php?CATNR=" +
+        std::to_string(noradId) +
+        "&FORMAT=TLE";
 
-    if (!response)
+    auto response = client.Get(path);
+
+    if (!response || response->status != 200)
     {
-        std::cout
-            << "Failed to download TLE\n";
-
+        std::cout << "Failed to download TLE\n";
         return;
     }
 
-    if (response->status != 200)
-    {
-        std::cout
-            << "HTTP error: "
-            << response->status
-            << "\n";
-
-        return;
-    }
-
-    std::ofstream file("data/iss.tle");
+    std::ofstream file(outputPath);
 
     std::istringstream stream(response->body);
     std::string line;
@@ -55,8 +46,7 @@ void TleDownloader::downloadIssTle()
         file << line << "\n";
     }
 
-    file.close();
-
-    std::cout
-        << "ISS TLE downloaded successfully\n";
+    std::cout << "TLE downloaded for NORAD ID: "
+              << noradId << "\n";
 }
+

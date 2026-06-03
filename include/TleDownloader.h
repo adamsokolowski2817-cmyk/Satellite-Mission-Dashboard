@@ -1,8 +1,11 @@
 #pragma once
 
+#include <string>
+
 class TleDownloader
 {
 public:
-
-    void downloadIssTle();
+    void downloadTleByNoradId(
+        int noradId,
+        const std::string& outputPath);
 };

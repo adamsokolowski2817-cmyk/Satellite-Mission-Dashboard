@@ -7,17 +7,25 @@
 #include "TelemetryServer.h"
 #include "TleDownloader.h"
 
-int main()
+int main(int argc, char* argv[])
 {
+    int noradId = 25544; // domyślnie ISS
+
+    if (argc > 1)
+    {
+        noradId = std::stoi(argv[1]);
+    }
 
     TleDownloader downloader;
 
-    downloader.downloadIssTle();
+    downloader.downloadTleByNoradId(
+        noradId,
+        "data/current.tle");
 
     TleLoader loader;
 
     TleData tle =
-        loader.loadFromFile("data/iss.tle");
+        loader.loadFromFile("data/current.tle");
 
     TleParser parser;
 
@@ -29,7 +37,7 @@ int main()
     exporter.exportParameters(
         tle.name,
         params,
-        "data/iss.json");
+        "data/current.json");
 
     OrbitPropagator propagator;
 
@@ -53,7 +61,7 @@ int main()
     std::cout << "Mean motion: "
               << params.meanMotion << " rev/day\n";
 
-    std::cout << "\nJSON exported to data/iss.json\n";
+    std::cout << "\nJSON exported to data/current.json\n";
 
     std::cout << "\nCurrent position:\n";
 
